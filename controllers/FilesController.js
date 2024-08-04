@@ -23,10 +23,8 @@ class FilesController {
     let data = ""
 
     if (type == 'file' || type == 'image') {
-	console.log(" i am good ");
 	data = req.body.data;
     }
-    console.log(data);
     if ('x-token' in req.headers) {
        name_token = 'x-token';
     }
@@ -112,5 +110,76 @@ class FilesController {
       });
     }
   }
+  static async getShow(req, res) {
+    const Id = req.params.id;
+    let name_token = ""
+    const fileCollection = dbClient.db.collection('files');
+    if ('x-token' in req.headers) {
+       name_token = 'x-token';
+    }
+    else {
+       name_token = 'X-Token';
+    }
+    const token = req.headers[name_token];
+    const user_id = await redisClient.get(`auth_${token}`)
+    if (!user_id) {
+      return res.status(401).send({"error":"Unauthorized"});
+    }
+    const file = await fileCollection.findOne({ "_id": new ObjectId(Id), userId: new ObjectId(user_id)});
+    if (!file) {
+      return res.status(404).send({"error":"Not found"});
+    }
+    return res.status(201).json(file);
+  }
+
+  static async getIndex(req, res) {
+    let parent_Id = req.query.parentId;
+    console.log(parent_Id);
+    let name_token = ""
+    if ('x-token' in req.headers) {
+       name_token = 'x-token';
+    }
+    else {
+       name_token = 'X-Token';
+    }
+    const token = req.headers[name_token];
+    const user_id = await redisClient.get(`auth_${token}`)
+    if (!user_id) {
+      return res.status(401).send({"error":"Unauthorized"});
+    }
+    const fileCollection = dbClient.db.collection('files');
+    const file = fileCollection.findOne({'parentId': new ObjectId(parent_Id)});
+    if (!file) {
+       return res.status(201).send([]);
+    }
+    const page = req.query.page || 0;
+    const aggregationPipeline = [
+    {
+    $facet: {
+	paginatedData: [
+        { $skip: page * 20 }, // Skip based on page number
+        { $limit: 20 } // Limit to items per page
+	]
+        },
+        }
+      ];
+
+// Execute the aggregation pipeline
+     const result =  await dbClient.db.collection('files').aggregate(aggregationPipeline).toArray();
+     let new_data = [];
+     if (parent_Id != null) {
+      for (var item of result[0]['paginatedData']) {
+	  if (item.parentId == parent_Id) {
+		new_data.push(item);
+	  }
+      }
+     }
+     else {
+      new_data = result[0]['paginatedData']
+     }
+// Extract paginatedData and totalCount from the result
+    return res.status(201).json(new_data);
+  }
+
 }
 export default FilesController;
