@@ -12,7 +12,8 @@ class AuthController {
   */
   static async getConnect(res, headers) {
     let userCollection = dbClient.db.collection('users');
-    let name_token = ""
+    let name_token = "";
+    console.log(headers);
     if ('authorization' in headers) {
        name_token = 'authorization'
     }

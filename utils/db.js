@@ -50,6 +50,5 @@ class DBClient {
     return numberFiles;
   }
 }
-
 const dbClient = new DBClient();
 export default dbClient;
