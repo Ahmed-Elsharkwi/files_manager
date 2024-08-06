@@ -138,10 +138,7 @@ class FilesController {
     }
     const fileCollection = dbClient.db.collection('files');
 
-    if (parent_Id !== undefined && !ObjectId.isValid(parent_Id)) {
-      return res.status(201).send([]);
-    }
-    const file = fileCollection.findOne({'parentId': new ObjectId(parent_Id)});
+    const file = await fileCollection.findOne({'parentId': parent_Id});
     if (!file) {
        return res.status(201).send([]);
     }
