@@ -5,6 +5,8 @@ import { ObjectId } from 'mongodb';
 import {v4 as uuidv4} from 'uuid'
 import { promises as fs } from 'fs';
 const fsSync = require('fs');
+const mime = require('mime-types');
+
 
 class FilesController {
   /**
@@ -261,7 +263,8 @@ class FilesController {
     }
     try {
       const fileData = fsSync.readFileSync(file.localPath, 'utf-8');
-      return res.status(200).json(fileData);
+      const contentType = mime.contentType(file.name);
+      return res.header('Content-Type', contentType).status(200).send(fileData);
     } catch (err) {
       if (err.code === 'ENOENT') {
         return res.status(404).json({'error':'Not found4'});
