@@ -138,7 +138,6 @@ class FilesController {
     }
     const fileCollection = dbClient.db.collection('files');
 
-    }
     const file = await fileCollection.findOne({'parentId': parent_Id});
     if (!file && parent_Id != undefined) {
        return res.status(201).send([]);
@@ -262,7 +261,7 @@ class FilesController {
     }
     try {
       const fileData = fsSync.readFileSync(file.localPath, 'utf-8');
-      return res.status(200).json(fileData.toString());
+      return res.status(200).json(fileData);
     } catch (err) {
       if (err.code === 'ENOENT') {
         return res.status(404).json({'error':'Not found4'});
