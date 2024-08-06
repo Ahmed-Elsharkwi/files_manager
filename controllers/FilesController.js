@@ -138,11 +138,9 @@ class FilesController {
     }
     const fileCollection = dbClient.db.collection('files');
 
-    if (parent_Id !== undefined && !ObjectId.isValid(parent_Id)) {
-      return res.status(201).send([]);
     }
-    const file = fileCollection.findOne({'parentId': new ObjectId(parent_Id)});
-    if (!file) {
+    const file = await fileCollection.findOne({'parentId': parent_Id});
+    if (!file && parent_Id != undefined) {
        return res.status(201).send([]);
     }
     const page = req.query.page || 0;
@@ -160,7 +158,7 @@ class FilesController {
 // Execute the aggregation pipeline
      const result =  await dbClient.db.collection('files').aggregate(aggregationPipeline).toArray();
      let new_data = [];
-     if (parent_Id != null) {
+     if (parent_Id != undefined) {
       for (let item of result[0]['paginatedData']) {
 	  if (item.parentId == parent_Id) {
 		new_data.push(item);
