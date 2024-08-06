@@ -10,16 +10,10 @@ class AuthController {
    * @response: JSON object with the feedback
    * returns: the JSON object along with 200 OK
   */
-  static async getConnect(res, headers) {
+  static async getConnect(req, res) {
+    const headers = req.headers;
     let userCollection = dbClient.db.collection('users');
-    let name_token = "";
-    console.log(headers);
-    if ('authorization' in headers) {
-       name_token = 'authorization'
-    }
-    else {
-       name_token = 'Authorization'
-    }
+    const name_token = 'authorization';
 
     let token = headers[name_token].split(" ");
     // eslint-disable-next-line
@@ -45,15 +39,11 @@ class AuthController {
    * @response: JSON object with the feedback
    * returns: the JSON object along with 200 OK
   */
-  static async getDisconnect(res, headers) {
-    let name_token = "";
-    if ('x-token' in headers) {
-       name_token = 'x-token';
-    }
-    else {
-       name_token = 'X-Token';
-    }
+  static async getDisconnect(req, res) {
+    const name_token = "x-token";
+    const headers = req.headers;
     const token = headers[name_token];
+    
     if (!await redisClient.get(`auth_${token}`)) {
       return res.status(401).send({"error":"Unauthorized"});
     }
@@ -62,5 +52,6 @@ class AuthController {
       return res.status(200).send();
     }
   }
- }
+}
+
 export default AuthController;

@@ -4,7 +4,7 @@ import sha1 from 'sha1';
 import { ObjectId } from 'mongodb';
 import {v4 as uuidv4} from 'uuid'
 import { promises as fs } from 'fs';
-
+const fsSync = require('fs');
 
 class FilesController {
   /**
@@ -15,7 +15,7 @@ class FilesController {
   */
   static async postUpload(req, res) {
     const fileCollection = dbClient.db.collection('files');
-    let name_token = "";
+    const name_token = "x-token";
     const name = req.body.name;
     const type = req.body.type;
     const parentID = req.body.parentId || 0;
@@ -25,12 +25,7 @@ class FilesController {
     if (type == 'file' || type == 'image') {
 	data = req.body.data;
     }
-    if ('x-token' in req.headers) {
-       name_token = 'x-token';
-    }
-    else {
-       name_token = 'X-Token';
-    }
+    
     const token = req.headers[name_token];
     const user_id = await redisClient.get(`auth_${token}`)
     if (!user_id) {
@@ -110,21 +105,22 @@ class FilesController {
       });
     }
   }
+
+
   static async getShow(req, res) {
     const Id = req.params.id;
-    let name_token = ""
+    let name_token = "x-token";
     const fileCollection = dbClient.db.collection('files');
-    if ('x-token' in req.headers) {
-       name_token = 'x-token';
-    }
-    else {
-       name_token = 'X-Token';
-    }
     const token = req.headers[name_token];
     const user_id = await redisClient.get(`auth_${token}`)
     if (!user_id) {
       return res.status(401).send({"error":"Unauthorized"});
     }
+
+    if (!ObjectId.isValid(Id)) {
+      return res.status(404).send({"error":"Not found"});
+    }
+
     const file = await fileCollection.findOne({ "_id": new ObjectId(Id), userId: new ObjectId(user_id)});
     if (!file) {
       return res.status(404).send({"error":"Not found"});
@@ -133,21 +129,18 @@ class FilesController {
   }
 
   static async getIndex(req, res) {
-    let parent_Id = req.query.parentId;
-    console.log(parent_Id);
-    let name_token = ""
-    if ('x-token' in req.headers) {
-       name_token = 'x-token';
-    }
-    else {
-       name_token = 'X-Token';
-    }
+    const parent_Id = req.query.parentId;
+    const name_token = "x-token";
     const token = req.headers[name_token];
-    const user_id = await redisClient.get(`auth_${token}`)
+    const user_id = await redisClient.get(`auth_${token}`);
     if (!user_id) {
       return res.status(401).send({"error":"Unauthorized"});
     }
     const fileCollection = dbClient.db.collection('files');
+
+    if (parent_Id !== undefined && !ObjectId.isValid(parent_Id)) {
+      return res.status(201).send([]);
+    }
     const file = fileCollection.findOne({'parentId': new ObjectId(parent_Id)});
     if (!file) {
        return res.status(201).send([]);
@@ -168,7 +161,7 @@ class FilesController {
      const result =  await dbClient.db.collection('files').aggregate(aggregationPipeline).toArray();
      let new_data = [];
      if (parent_Id != null) {
-      for (var item of result[0]['paginatedData']) {
+      for (let item of result[0]['paginatedData']) {
 	  if (item.parentId == parent_Id) {
 		new_data.push(item);
 	  }
@@ -181,5 +174,104 @@ class FilesController {
     return res.status(201).json(new_data);
   }
 
+  static async putPublish(req, res) {
+    const name_token = 'x-token';
+    const file_id = req.params.id;
+    const token = req.headers[name_token];
+    const user = await redisClient.get(`auth_${token}`);
+
+    if (!user) {
+      return res.status(401).json({'error':'Unauthorized'});
+    }
+
+    const fileCollection = await dbClient.db.collection('files');
+    if (!ObjectId.isValid(file_id)) {
+      return res.status(401).json({'error':'Not found'});	   
+    }
+
+    const file = await fileCollection.findOne({"userId": new ObjectId(user), '_id': new ObjectId(file_id)});
+
+    if (!file) {
+      return res.status(404).json({'error':'Not found'});
+    }
+
+    file.isPublic = true;
+
+    await fileCollection.updateOne(
+      {'_id': new ObjectId(file_id)},
+      { $set: { 'isPublic': file.isPublic } }
+    );
+    return res.status(200).json(file);
+  }
+
+  static async putUnpublish(req, res) {
+    const name_token = 'x-token';
+    const file_id = req.params.id;
+    const token = req.headers[name_token];
+    const user = await redisClient.get(`auth_${token}`);
+
+    if (!user) {
+      return res.status(401).json({'error':'Unauthorized'});
+    }
+
+    const fileCollection = await dbClient.db.collection('files');
+    if (!ObjectId.isValid(file_id)) {
+      return res.status(401).json({'error':'Not found'});
+    }
+
+    const file = await fileCollection.findOne({"userId": new ObjectId(user), '_id': new ObjectId(file_id)});
+
+    if (!file) {
+      return res.status(404).json({'error':'Not found'});
+    }
+
+    file.isPublic = false;
+
+    await fileCollection.updateOne(
+      {'_id': new ObjectId(file_id)},
+      { $set: { 'isPublic': file.isPublic } }
+    );
+    return res.status(200).json(file);
+  }
+
+  static async getFile(req, res) {
+    const fileId = req.params.id;
+    const name_token = 'x-token';
+    const token = req.headers[name_token];
+    const user =  await redisClient.get(`auth_${token}`);
+
+    if (!user) {
+      return res.status(401).json({'error':'Unauthorized'});
+    }
+
+    if (!ObjectId.isValid(fileId)) {
+      return res.status(404).json({'error':'Not found1'});
+    }
+
+    const fileCollection = await dbClient.db.collection('files');
+    const file = await fileCollection.findOne({'_id': new ObjectId(fileId)});
+
+    if (!file) {
+      return res.status(404).json({'error':'Not found2'});
+    }
+
+    if (user !== file.userId.toString() && file.isPublic === false) {
+      return res.status(404).json({'error':'Not found3'});
+    }
+
+    if (file.type === 'folder') {
+      return res.status(400).json({'error':"A folder doesn't have content"});
+    }
+    try {
+      const fileData = fsSync.readFileSync(file.localPath, 'utf-8');
+      return res.status(200).json(fileData.toString());
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return res.status(404).json({'error':'Not found4'});
+      }
+      throw err;
+    }
+  }
 }
+
 export default FilesController;

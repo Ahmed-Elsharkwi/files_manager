@@ -26,27 +26,48 @@ function controllerRouting(app) {
   });
 
   router.get('/connect', (req, res) => {
-    AuthController.getConnect(res, req.headers);
+    // Genrates token in redis for user
+    AuthController.getConnect(req, res);
   });
 
   router.get('/disconnect', (req, res) => {
-    AuthController.getDisconnect(res, req.headers);
+    // Removes token from redis for a certain user
+    AuthController.getDisconnect(req, res);
   });
 
   router.get('/users/me', (req, res) => {
+    // Using a token, returns user object
     UsersController.getMe(req, res);
   });
 
   router.post('/files', (req, res) => {
+    // Create file in DB and disk
     FilesController.postUpload(req, res);
   });
 
   router.get('/files/:id', (req, res) => {
+    // Gets file based on id
     FilesController.getShow(req, res);
-  })
+  });
 
   router.get('/files', (req, res) => {
+    // Retrieve all users file documents for a specific parentId and with pagination
     FilesController.getIndex(req, res);
-  })
+  });
+
+  router.put('/files/:id/publish', (req, res) => {
+    // Sets isPublic to true on the file document based on the ID
+    FilesController.putPublish(req, res);
+  });
+
+  router.put('/files/:id/unpublish', (req, res) => {
+    // Sets isPublic to false on the file document based on the ID
+    FilesController.putUnpublish(req, res);
+  });
+
+  router.get('/files/:id/data', (req, res) => {
+    // Returns the content of the file document based on the ID
+    FilesController.getFile(req, res);
+  });
 }
 export default controllerRouting;
